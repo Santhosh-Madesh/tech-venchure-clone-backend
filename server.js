@@ -1,37 +1,36 @@
-import express from "express"
-import mysql from "mysql2"
-import cors from "cors"
-import dontenv from "dotenv"
+import express from "express";
+import mysql from "mysql2/promise"; // use promise version
+import cors from "cors";
+import dotenv from "dotenv";
 
-dontenv.config();
+dotenv.config();
 
 const app = express();
 
 app.use(cors());
-app.use(express.json())
+app.use(express.json());
 
+app.post("/contact-form", async (req, res) => {
+  const { name, email, subject, message } = req.body;
 
-const db = mysql.createConnection({
+  // Create a connection for this request
+  const connection = await mysql.createConnection({
     host: process.env.DB_HOST,
     user: process.env.DB_USER,
     password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME,
-})
+    database: process.env.DB_NAME
+  });
 
-app.post("contact-form/", (req, res)=>{
-
-    const { name, email, subject, message } = req.body;
-
+  try {
     const sql = "INSERT INTO contactform (name, email, subject, message) VALUES (?, ?, ?, ?)";
+    await connection.execute(sql, [name, email, subject, message]);
+    res.status(200).json({ message: "Form submitted successfully" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Database error" });
+  } finally {
+    await connection.end();
+  }
+});
 
-    db.query(sql, [name, email, subject, message], (err)=>{
-        if(err){
-            console.log(err);
-        }
-    })
-})
-
-
-app.listen(5000, ()=>{
-    console.log("Server is up & running")
-})
+export default app;
